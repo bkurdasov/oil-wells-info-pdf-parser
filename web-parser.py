@@ -7,7 +7,12 @@ import csv
 from StringIO import StringIO
 from flask import Flask,request,abort,render_template,send_file
 import datetime
-#import requests
+
+PDF_URL='https://www.dmr.nd.gov/oilgas/daily/%s/dr%s.pdf'
+START='PERMIT LIST'
+STOP='ADDITIONAL INFORMATION'
+REGEXP=r"""#\d+\s{1,}-\s{1,}[^#]*API\s#\d{2}-\d{3}-\d{5}"""
+
 app=Flask(__name__,static_url_path='')
 app.config.from_object(__name__)
 
@@ -19,9 +24,7 @@ def mainpage(input_data):
         input_data=request.form.get('input','none').strip()
         if not re.match(r"\d\d/\d\d/\d\d\d\d",input_data):
             abort(404)
-        #day,month,year=map(int,input_data.strip().split('/'))
         date=input_data
-
         try:
             month,day,year=map(int,date.split('/'))
             provided_date=datetime.date(year,month,day)
@@ -33,10 +36,7 @@ def mainpage(input_data):
 
         year=date.split('/')[-1]
         short_date=''.join(date.split('/')[:-1])+year[2:]
-        url='https://www.dmr.nd.gov/oilgas/daily/%s/dr%s.pdf' % (year, short_date)
-        START='PERMIT LIST'
-        STOP='ADDITIONAL INFORMATION'
-        REGEXP=r"""#\d+\s{1,}-\s{1,}[^#]*API\s#\d{2}-\d{3}-\d{5}"""
+        url=PDF_URL % (year, short_date)
         try:
             f=urllib2.urlopen(url)
         except (httplib.HTTPException,urllib2.HTTPError,urllib2.URLError):
@@ -49,8 +49,7 @@ def mainpage(input_data):
         doc_as_string=''.join(doc)
         doc_filtered=''.join(c for c in doc_as_string if c!=chr(12))
         s=doc_filtered[doc_filtered.find(START)+len(START):doc_filtered.find(STOP)].strip()
-        r=re.search(REGEXP,s)
-        if r:
+        if re.search(REGEXP,s):
             for line in re.findall(REGEXP,s):
                 line=line.replace(', INC',' INC')
                 line=line.replace(', LLC',' LLC')
